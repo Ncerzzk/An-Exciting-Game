@@ -19,15 +19,25 @@ class Map:
     def __getitem__(self, item):   # item 是一个Position对象
         return self.Martix[item.Y][item.X]
 
+    def __setitem__(self, key, value):
+
+        self.Martix[key.Y][key.X]=value
+
+    def remove(self,character):
+        self.Dic.pop(character.ID)
+        self.update(character.Position,0)
+
+    def update(self,position,n):
+        self[position]=n
 
     def update_all(self,characters):
         for i in characters:
             self.Martix[i.Position.Y][i.Position.X]=i.ID
-            self.Dic[i.ID]=Position
+            self.Dic[i.ID]=i.Position
 
-    def update(self,character):
-        self[character.Position]=character.ID
-        self[self.Dic[character.ID]]=0
+    def move(self,character):
+        self.update(character.Position,character.ID)
+        self.update(self.Dic[character.ID],0)
 
     def can_move(self,x=None,y=None,position=None):
         temp_x=0
