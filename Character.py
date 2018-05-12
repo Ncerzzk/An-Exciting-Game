@@ -1,6 +1,8 @@
 from Action import *
 from Map import *
 
+import  unittest
+
 class Character:
     Character_Num=0
     def __init__(self,name,hp,mp,skill_list,position,action_list,party_id,move,symbol):
@@ -10,7 +12,7 @@ class Character:
         self.Skill_List=skill_list
         if(position.__class__==Position):
             self.Position=position
-        elif(position.__class__==list):
+        elif(position.__class__==list or position.__class__==tuple):
             self.Position=Position(position[0],position[1])
         self.Action_List=action_list
         self.Action_Point=10
@@ -19,6 +21,19 @@ class Character:
         self.Symbol=symbol
         Character.Character_Num = Character.Character_Num + 1
         self.ID=Character.Character_Num
+        self.Actions=Actions()
+
+    def move(self,x,y):
+        self.Actions.append(Move(x,y))
+
+    def attack(self,target,skill=None):
+        if not skill:
+            self.Actions.append(Attack(target,self.Skill_List[0]))
+        else:
+            pass #因为暂时只有一个技能，这里先不实现
+
+    def rest(self):
+        self.Actions.append(Rest())
 
     def update_HP(self,h):
         # 更新HP
@@ -39,7 +54,7 @@ class Character:
 
 
     def is_alive(self):  #判断是否存活
-        if(self.HP>0):
+        if self.HP>0 :
             return True
         else:
             return False
@@ -54,6 +69,29 @@ class Skill:
         self.Damage=damage
         self.Consume=consume
 
+class Actions():
+    def __init__(self,action_list=None):
+        if action_list:
+            self.Action_List=action_list
+        else:
+            self.Action_List=[]
+    def __iter__(self):
+
+        return iter(self.Action_List)
+    def __len__(self):
+        return len(self.Action_List)
+
+    def __next__(self):
+        return next(self.Action_List)
+    def __getitem__(self, item):
+        if item>=len(self.Action_List):
+            raise IndexError("out of index")
+        return self.Action_List[item]
+
+    def append(self,item):
+        self.Action_List.append(item)
+
+'''
 class Character_Action():
 
     def __init__(self,character,action_list):
@@ -70,31 +108,41 @@ class Character_Action():
                 ap=ap-action.AP
                 self.set_done(action.AP)
     def __iter__(self):
+
         return iter(self.Action_List)
+    def __len__(self):
+        return len(self.Action_List)
+
     def __next__(self):
         return next(self.Action_List)
-
-
-
     def __getitem__(self, item):
         if item>=len(self.Action_List):
             raise IndexError("out of index")
         return self.Action_List[item]
-
-
     def is_done(self,ap):   #判断该Action 是否执行过，即每回合只能做一次移动
         if (1<<ap) & self.AP_Bin :
             return False
         else:
             return True
-
     def set_done(self,ap):
-        self.AP_Bin & ~(1<<ap)
+        self.AP_Bin &= ~(1<<ap)
+
+class Test_Character_Action(unittest.TestCase):
+    def test_s(self):
+        c=Character("战士", 100, 0, [], [0, 0], [Move, Attack, Rest],1,2,"▲")
+        warrior_actions=Character_Action(c,[Move(1,2),Move(1,2)])
+        self.assertEqual(len(warrior_actions),1)  ## 测试AP
+        self.assertEqual(warrior_actions[0].__class__,Move)  #test_get_item
+        for i in warrior_actions:
+            self.assertEqual(i.__class__,Move)   # 测试迭代
+
+
+
 
 
 def Think(all_list):
     pass
-
+'''
 
 
 

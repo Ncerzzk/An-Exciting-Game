@@ -18,12 +18,50 @@ class Game:
 
         self.Map.update_all(self.Characters)
         while not self.is_game_over():
-            self.do(Think1(self.Characters),1)
-            self.do(Think2(self.Characters),2)
-
+            result=Think1(self.Characters)
+            for c in result:
+                self.do(c,c.Actions,1)
             self.display()
-            x=input("t")
+            x=input("t") #暂停
 
+    def do(self,character,actions,party_id):
+        if(character.Party_ID!=party_id):
+            print("该角色你无法控制！")
+            return None
+
+        # 判断行动点数是否足够
+        ap=character.Action_Point
+        real_actions=[]
+        for action in actions:
+            if ap>action.AP:
+                ap-=action.AP
+                real_actions.append(action)
+
+        for times,action in enumerate(real_actions):
+            if action.__class__ == Move:
+                if character.Position.distance(action.Dest_Position) > character.MV:
+                    continue  # 超出移动距离，无效
+                else:
+                    character.Position = action.Dest_Position
+                    self.Map.move(character)
+            elif action.__class__ == Attack:
+                if character.can_use_skill(action.Skill):  # MP 是否足够
+                    if character.distance(action.Target) > action.Skill.Distance:
+                        continue  # 超出攻击距离，无效
+                    else:
+                        action.Target.update_HP(-action.Skill.Damage)
+                        character.update_MP(action.Skill.Consume)
+                        if not action.Target.is_alive():
+                            self.Characters.remove(action.Target)
+                            self.Map.remove(action.Target)
+                            # 还得检测角色是否死亡，如果死亡应该踢出队伍
+            elif action.__class__ == Rest:
+                if times == 0:  # 判断是否啥都不干直接休息，如果是，恢复
+                    character.HP += character.HP * 0.1
+                    character.MP += character.MP * 0.1
+                break  # 休息了，直接跳出
+            self.display()
+"""
     def do(self,character_actions,party_id):
         for character_action in character_actions:
             character=character_action.Character
@@ -54,7 +92,7 @@ class Game:
                         character.MP+= character.MP * 0.1
                     break #休息了，直接跳出
                 self.display()
-
+"""
     def display(self):
         result=[]
         for i in range(0,8):

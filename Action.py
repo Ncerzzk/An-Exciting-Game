@@ -1,11 +1,16 @@
+from Map import  *
+
 class Action:
     def __init__(self):
         pass
 
 class Move(Action):
     AP=4
-    def __init__(self,position):
-        self.Dest_Position=position
+    def __init__(self,*args):
+        if(len(args)>1):
+            self.Dest_Position=Position(args[0],args[1])
+        else:
+            self.Dest_Position=args[0]
 
 class Rest(Action):
     AP=0
