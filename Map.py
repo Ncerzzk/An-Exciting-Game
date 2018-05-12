@@ -38,6 +38,11 @@ class Map:
     def move(self,character):
         self.update(character.Position,character.ID)
         self.update(self.Dic[character.ID],0)
+        self.Dic[character.ID]=character.Position
+
+    def display(self):
+        for line in self.Martix:
+            print(line)
 
     def can_move(self,x=None,y=None,position=None):
         temp_x=0

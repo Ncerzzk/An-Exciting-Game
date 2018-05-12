@@ -47,9 +47,10 @@ class Character:
             self.MP=0
 
     def can_use_skill(self,skill):
-        if self.MP>skill.Consume:
+        if self.MP>=skill.Consume:
             return True
         else:
+            print("无法使用技能")
             return False
 
 
@@ -57,6 +58,7 @@ class Character:
         if self.HP>0 :
             return True
         else:
+            print("角色死亡")
             return False
 
     def distance(self,target_character):
@@ -90,6 +92,9 @@ class Actions():
 
     def append(self,item):
         self.Action_List.append(item)
+
+    def clear(self):
+        self.Action_List.clear()
 
 '''
 class Character_Action():

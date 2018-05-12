@@ -1,5 +1,7 @@
 from Character import *
 
+import unittest
+
 class Game:
     def __init__(self):
         Warrior_Normal_Attack = Skill("普通攻击", 1, 20,0)
@@ -8,21 +10,30 @@ class Game:
 
         self.Characters=[]
         self.Map=Map(8,8);
-        self.Characters.append(Character("战士", 100, 0, [Warrior_Normal_Attack], [0, 0], [Move, Attack, Rest],1,2,"▲"))
+        self.Characters.append(Character("战士", 100, 0, [Warrior_Normal_Attack], [0, 1], [Move, Attack, Rest],1,2,"▲"))
+        """
         self.Characters.append(Character("法师", 50, 100, [Magic_Attack], [0, 1], [Move, Attack, Rest],1,1,"✦"))
         self.Characters.append(Character("圣职者", 50, 100, [Cure], [0, 2], [Move, Attack, Rest],1,1,"✞"))
 
         self.Characters.append(Character("战士", 100, 0, [Warrior_Normal_Attack], [7, 7], [Move, Attack, Rest], 2,2,"▲"))
         self.Characters.append(Character("法师", 50, 100, [Magic_Attack], [7, 6], [Move, Attack, Rest], 2,1,"✦"))
         self.Characters.append(Character("圣职者", 50, 100, [Cure], [7, 5], [Move, Attack, Rest], 2,1,"✞"))
+        """
+        self.Characters.append(
+            Character("战士", 100, 0, [Warrior_Normal_Attack], [0, 2], [Move, Attack, Rest], 2, 2, "▲"))
 
         self.Map.update_all(self.Characters)
         while not self.is_game_over():
             result=Think1(self.Characters)
             for c in result:
                 self.do(c,c.Actions,1)
-            self.display()
-            x=input("t") #暂停
+            if self.is_game_over():
+                break
+            result=Think2(self.Characters)
+            for c in result:
+                self.do(c,c.Actions,2)
+            x=input("next:") #暂停
+        print("游戏结束")
 
     def do(self,character,actions,party_id):
         if(character.Party_ID!=party_id):
@@ -36,21 +47,30 @@ class Game:
             if ap>action.AP:
                 ap-=action.AP
                 real_actions.append(action)
+            else:
+                print("%d 的 %s 由于行动点数不足，无法执行 %s" %(party_id,character.Name,action))
 
         for times,action in enumerate(real_actions):
+            print("队伍 %d 的 %s，动作是%s" %(character.Party_ID,character.Name,str(action)))
             if action.__class__ == Move:
                 if character.Position.distance(action.Dest_Position) > character.MV:
+                    print("超出移动距离，移动无效")
                     continue  # 超出移动距离，无效
                 else:
+                    print("移动目标是 x:%d y:%d" % (action.Dest_Position.X,action.Dest_Position.Y))
                     character.Position = action.Dest_Position
                     self.Map.move(character)
             elif action.__class__ == Attack:
                 if character.can_use_skill(action.Skill):  # MP 是否足够
                     if character.distance(action.Target) > action.Skill.Distance:
+                        print("超出攻击距离，攻击无效")
                         continue  # 超出攻击距离，无效
                     else:
+
                         action.Target.update_HP(-action.Skill.Damage)
                         character.update_MP(action.Skill.Consume)
+                        print("攻击目标是 队伍%d 的 %s,攻击后，目标HP为%d" % (
+                        action.Target.Party_ID, action.Target.Name, action.Target.HP))
                         if not action.Target.is_alive():
                             self.Characters.remove(action.Target)
                             self.Map.remove(action.Target)
@@ -59,40 +79,14 @@ class Game:
                 if times == 0:  # 判断是否啥都不干直接休息，如果是，恢复
                     character.HP += character.HP * 0.1
                     character.MP += character.MP * 0.1
+                    print("休息，当前HP为 %d" % character.HP)
                 break  # 休息了，直接跳出
-            self.display()
-"""
-    def do(self,character_actions,party_id):
-        for character_action in character_actions:
-            character=character_action.Character
-            if character.Party_ID!=party_id: # 输出的动作不是自己队伍的角色，即控制了别人的角色，无效
-                return None
-            for times,action in enumerate( character_action.Action_List):
-                if action.__class__==Move:
-                    if character.Position.distance(action.Dest_Position)>character.MV:
-                        continue #超出移动距离，无效
-                    else:
-                        character.Position=action.Dest_Position
-                        self.Map.move(character)
-                elif action.__class__==Attack:
-                    if character.can_use_skill(action.Skill): # MP 是否足够
-                        if character.distance(action.Target) > action.Skill.Distance:
-                            continue #超出攻击距离，无效
-                        else:
-                            action.Target.update_HP(-action.Skill.Damage)
-                            character.update_MP(action.Skill.Consume)
-                            if not action.Target.is_alive():
-                                self.Characters.remove(action.Target)
-                                self.Map.remove(action.Target)
-                                # 还得检测角色是否死亡，如果死亡应该踢出队伍
 
-                elif action.__class__==Rest:
-                    if times==0: #判断是否啥都不干直接休息，如果是，恢复
-                        character.HP+=character.HP*0.1
-                        character.MP+= character.MP * 0.1
-                    break #休息了，直接跳出
-                self.display()
-"""
+            self.Map.display()
+        character.Actions.clear()
+
+
+
     def display(self):
         result=[]
         for i in range(0,8):
@@ -115,11 +109,18 @@ class Game:
                 return True
         return False
 
+
 def Think1(cl):
     result=[]
-    warrior_action=Character_Action(cl[0],[Move(Position(1,1)),Rest])
-
-    result.append(warrior_action)
+    warrior=cl[0]
+    warrior.attack(cl[1])
+    result.append(warrior)
     return result
 
+def Think2(cl):
+    result=[]
+    warrior=cl[1]
+    warrior.rest()
+    result.append(warrior)
+    return result
 Game()
