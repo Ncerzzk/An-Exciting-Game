@@ -1,5 +1,4 @@
 from Character import *
-
 import unittest
 
 class Game:
@@ -13,11 +12,11 @@ class Game:
         self.Characters.append(Character("战士", 100, 0, [Warrior_Normal_Attack], [0, 0], [Move, Attack, Rest],1,2,"▲",self.Map))
 
         self.Characters.append(Character("法师", 50, 100, [Magic_Attack], [0, 1], [Move, Attack, Rest],1,1,"✦",self.Map))
-        self.Characters.append(Character("圣职者", 50, 100, [Cure], [0, 2], [Move, Attack, Rest],1,1,"✞",self.Map))
+        self.Characters.append(Character("奶妈", 50, 100, [Cure], [0, 2], [Move, Attack, Rest],1,1,"✞",self.Map))
 
         self.Characters.append(Character("战士", 100, 0, [Warrior_Normal_Attack], [7, 7], [Move, Attack, Rest], 2,2,"▲",self.Map))
         self.Characters.append(Character("法师", 50, 100, [Magic_Attack], [7, 6], [Move, Attack, Rest], 2,1,"✦",self.Map))
-        self.Characters.append(Character("圣职者", 50, 100, [Cure], [7, 5], [Move, Attack, Rest], 2,1,"✞",self.Map))
+        self.Characters.append(Character("奶妈", 50, 100, [Cure], [7, 5], [Move, Attack, Rest], 2,1,"✞",self.Map))
 
         """
         self.Characters.append(
@@ -27,6 +26,7 @@ class Game:
         self.Map.update_all(self.Characters)
         while not self.is_game_over():
             result=Think1(self.Characters)
+            print(result)
             for c in result:
                 self.do(c,c.Actions,1)
             if self.is_game_over():
@@ -68,7 +68,9 @@ class Game:
                         print("超出攻击距离，攻击无效")
                         continue  # 超出攻击距离，无效
                     else:
-
+                        if not action.Target.is_alive():
+                            print("该角色已经死亡")
+                            continue
                         action.Target.update_HP(-action.Skill.Damage)
                         character.update_MP(action.Skill.Consume)
                         print("攻击目标是 队伍%d 的 %s,攻击后，目标HP为%d" % (
@@ -146,22 +148,13 @@ def Get_Character(party_id,occupation):
 
 def Think1(cl):
     Init_Dic(cl)
-    result=[]
-    warrior=cl[0]
-    warrior.attack(cl[1])
-    result.append(warrior)
-    return result
 
+    my_characters=Get_Party_Characters(1)
+    enemys=Get_Party_Characters(2)
 
-def Think2(cl):
-    Init_Dic(cl)
-
-    my_characters=Get_Party_Characters(2)
-    enemys=Get_Party_Characters(1)
-
-    my_warrior=Get_Character(2,"warrior")
-    my_caster=Get_Character(2,"caster")
-#    my_nurse=Get_Character(2,"nurse")
+    my_warrior=Get_Character(1,"warrior")
+    my_caster=Get_Character(1,"caster")
+    my_nurse=Get_Character(1,"nurse")
 
     warrior_can_attack_list=[]
     caster_can_attack_list=[]
@@ -173,15 +166,16 @@ def Think2(cl):
             warrior_can_attack_list.append(enemy)
         elif enemy.Position.distance(my_caster.Position)<=2 :
             caster_can_attack_list.append(enemy)
-        if enemy.HP<=enemy_min_hp:
+        if enemy.HP<=enemy_min_hp and enemy.HP>0:
             enemy_min_hp=enemy.HP
             enemy_target=enemy  #找血最少的那个，干他丫的
 
 
     min_distance=100
+    if my_warrior.Position.distance(my_nurse.Position)>2:
+        my_warrior.rest()
     if len(warrior_can_attack_list)<1:  #战士无目标
         t_position,min_distance=my_warrior.find_way(enemy_target.Position)
-        print(t_position.X,t_position.Y)
         my_warrior.move(t_position.X,t_position.Y)
         if min_distance <=1:
             my_warrior.attack(enemy_target)
@@ -195,9 +189,76 @@ def Think2(cl):
             my_caster.attack(enemy_target)
     else:
         my_caster.attack(enemy_target)
-        
+
+    if my_nurse.Position.distance(my_warrior.Position) >1:
+        t_position, min_distance = my_nurse.find_way(my_warrior.Position)
+        my_nurse.move(t_position.X,t_position.Y)
+
+    if my_nurse.Position.distance(my_warrior.Position) <=2:
+        if my_warrior.HP<80:
+            my_nurse.attack(my_warrior)
+
     result=[]
     result.append(my_warrior)
     result.append(my_caster)
+    result.append(my_nurse)
+    return result
+
+def Think2(cl):
+    Init_Dic(cl)
+
+    my_characters=Get_Party_Characters(2)
+    enemys=Get_Party_Characters(1)
+
+    my_warrior=Get_Character(2,"warrior")
+    my_caster=Get_Character(2,"caster")
+    my_nurse=Get_Character(2,"nurse")
+
+    warrior_can_attack_list=[]
+    caster_can_attack_list=[]
+
+    enemy_min_hp=100
+    enemy_target=None
+    for enemy in enemys:
+        if enemy.Position.distance(my_warrior.Position) <= 1 :
+            warrior_can_attack_list.append(enemy)
+        elif enemy.Position.distance(my_caster.Position)<=2 :
+            caster_can_attack_list.append(enemy)
+        if enemy.HP<=enemy_min_hp and enemy.HP>0:
+            enemy_min_hp=enemy.HP
+            enemy_target=enemy  #找血最少的那个，干他丫的
+
+
+    min_distance=100
+    if my_warrior.Position.distance(my_nurse.Position)>2:
+        my_warrior.rest()
+    if len(warrior_can_attack_list)<1:  #战士无目标
+        t_position,min_distance=my_warrior.find_way(enemy_target.Position)
+        my_warrior.move(t_position.X,t_position.Y)
+        if min_distance <=1:
+            my_warrior.attack(enemy_target)
+    else:
+        my_warrior.attack(warrior_can_attack_list[0])
+
+    if len(caster_can_attack_list)<1:
+        t_position,min_distance=my_caster.find_way(enemy_target.Position)
+        my_caster.move(t_position.X,t_position.Y)
+        if min_distance <=2:
+            my_caster.attack(enemy_target)
+    else:
+        my_caster.attack(enemy_target)
+
+    if my_nurse.Position.distance(my_warrior.Position) >1:
+        t_position, min_distance = my_nurse.find_way(my_warrior.Position)
+        my_nurse.move(t_position.X,t_position.Y)
+
+    if my_nurse.Position.distance(my_warrior.Position) <=2:
+        if my_warrior.HP<80:
+            my_nurse.attack(my_warrior)
+
+    result=[]
+    result.append(my_warrior)
+    result.append(my_caster)
+    result.append(my_nurse)
     return result
 Game()

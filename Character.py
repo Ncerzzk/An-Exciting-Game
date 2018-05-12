@@ -49,11 +49,16 @@ class Character:
         self.HP+=h
         if self.HP<0:
             self.HP=0
+        elif self.HP>self.MAX_HP:
+            self.HP=self.MAX_HP
 
     def update_MP(self,h):
         self.MP+=h
         if self.MP<0:
             self.MP=0
+        elif self.MP>self.MAX_MP:
+            self.MP=self.MAX_MP
+
 
     def can_use_skill(self,skill):
         if self.MP>=skill.Consume:
