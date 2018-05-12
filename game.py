@@ -9,19 +9,21 @@ class Game:
         Cure = Skill("恢复", 2, -30,30)
 
         self.Characters=[]
-        self.Map=Map(8,8);
-        self.Characters.append(Character("战士", 100, 0, [Warrior_Normal_Attack], [0, 1], [Move, Attack, Rest],1,2,"▲"))
-        """
-        self.Characters.append(Character("法师", 50, 100, [Magic_Attack], [0, 1], [Move, Attack, Rest],1,1,"✦"))
-        self.Characters.append(Character("圣职者", 50, 100, [Cure], [0, 2], [Move, Attack, Rest],1,1,"✞"))
+        self.Map=Map(8,8)
+        self.Characters.append(Character("战士", 100, 0, [Warrior_Normal_Attack], [0, 0], [Move, Attack, Rest],1,2,"▲",self.Map))
 
-        self.Characters.append(Character("战士", 100, 0, [Warrior_Normal_Attack], [7, 7], [Move, Attack, Rest], 2,2,"▲"))
-        self.Characters.append(Character("法师", 50, 100, [Magic_Attack], [7, 6], [Move, Attack, Rest], 2,1,"✦"))
-        self.Characters.append(Character("圣职者", 50, 100, [Cure], [7, 5], [Move, Attack, Rest], 2,1,"✞"))
+        self.Characters.append(Character("法师", 50, 100, [Magic_Attack], [0, 1], [Move, Attack, Rest],1,1,"✦",self.Map))
+        self.Characters.append(Character("圣职者", 50, 100, [Cure], [0, 2], [Move, Attack, Rest],1,1,"✞",self.Map))
+
+        self.Characters.append(Character("战士", 100, 0, [Warrior_Normal_Attack], [7, 7], [Move, Attack, Rest], 2,2,"▲",self.Map))
+        self.Characters.append(Character("法师", 50, 100, [Magic_Attack], [7, 6], [Move, Attack, Rest], 2,1,"✦",self.Map))
+        self.Characters.append(Character("圣职者", 50, 100, [Cure], [7, 5], [Move, Attack, Rest], 2,1,"✞",self.Map))
+
         """
         self.Characters.append(
-            Character("战士", 100, 0, [Warrior_Normal_Attack], [0, 2], [Move, Attack, Rest], 2, 2, "▲"))
-
+            Character("战士", 100, 0, [Warrior_Normal_Attack], [0, 5], [Move, Attack, Rest], 2, 2, "▲",self.Map))
+        self.Characters.append(Character("法师", 50, 100, [Magic_Attack], [4, 1], [Move, Attack, Rest], 2, 1, "✦",self.Map))
+        """
         self.Map.update_all(self.Characters)
         while not self.is_game_over():
             result=Think1(self.Characters)
@@ -44,7 +46,7 @@ class Game:
         ap=character.Action_Point
         real_actions=[]
         for action in actions:
-            if ap>action.AP:
+            if ap>=action.AP:
                 ap-=action.AP
                 real_actions.append(action)
             else:
@@ -77,8 +79,8 @@ class Game:
                             # 还得检测角色是否死亡，如果死亡应该踢出队伍
             elif action.__class__ == Rest:
                 if times == 0:  # 判断是否啥都不干直接休息，如果是，恢复
-                    character.HP += character.HP * 0.1
-                    character.MP += character.MP * 0.1
+                    character.HP += character.MAX_HP * 0.1
+                    character.MP += character.MAX_MP * 0.1
                     print("休息，当前HP为 %d" % character.HP)
                 break  # 休息了，直接跳出
 
@@ -110,17 +112,92 @@ class Game:
         return False
 
 
+Party_Dic={}
+Ocupation_Dic={}
+
+def Init_Dic(cl):
+    Party_Dic[1]=[]
+    Party_Dic[2]=[]
+
+    Ocupation_Dic["warrior"]=[]
+    Ocupation_Dic["caster"]=[]
+    Ocupation_Dic["nurse"]=[]
+    for i in cl:
+        if i.Party_ID==1:
+            Party_Dic[1].append(i)
+        else:
+            Party_Dic[2].append(i)
+
+        if i.Name=="战士":
+            Ocupation_Dic["warrior"].append(i)
+        elif i.Name=="法师":
+            Ocupation_Dic["caster"].append(i)
+        elif i.Name=="奶妈":
+            Ocupation_Dic["nurse"].append(i)
+
+def Get_Party_Characters(party_id):
+    return Party_Dic[party_id]
+
+def Get_Occupation_Characters(occupation):
+    return Ocupation_Dic[occupation]
+
+def Get_Character(party_id,occupation):
+    return list(set(Party_Dic[party_id]).intersection(set(Ocupation_Dic[occupation])))[0]
+
 def Think1(cl):
+    Init_Dic(cl)
     result=[]
     warrior=cl[0]
     warrior.attack(cl[1])
     result.append(warrior)
     return result
 
+
 def Think2(cl):
+    Init_Dic(cl)
+
+    my_characters=Get_Party_Characters(2)
+    enemys=Get_Party_Characters(1)
+
+    my_warrior=Get_Character(2,"warrior")
+    my_caster=Get_Character(2,"caster")
+#    my_nurse=Get_Character(2,"nurse")
+
+    warrior_can_attack_list=[]
+    caster_can_attack_list=[]
+
+    enemy_min_hp=100
+    enemy_target=None
+    for enemy in enemys:
+        if enemy.Position.distance(my_warrior.Position) <= 1 :
+            warrior_can_attack_list.append(enemy)
+        elif enemy.Position.distance(my_caster.Position)<=2 :
+            caster_can_attack_list.append(enemy)
+        if enemy.HP<=enemy_min_hp:
+            enemy_min_hp=enemy.HP
+            enemy_target=enemy  #找血最少的那个，干他丫的
+
+
+    min_distance=100
+    if len(warrior_can_attack_list)<1:  #战士无目标
+        t_position,min_distance=my_warrior.find_way(enemy_target.Position)
+        print(t_position.X,t_position.Y)
+        my_warrior.move(t_position.X,t_position.Y)
+        if min_distance <=1:
+            my_warrior.attack(enemy_target)
+    else:
+        my_warrior.attack(warrior_can_attack_list[0])
+
+    if len(caster_can_attack_list)<1:
+        t_position,min_distance=my_caster.find_way(enemy_target.Position)
+        my_caster.move(t_position.X,t_position.Y)
+        if min_distance <=2:
+            my_caster.attack(enemy_target)
+    else:
+        my_caster.attack(enemy_target)
+        
     result=[]
-    warrior=cl[1]
-    warrior.rest()
-    result.append(warrior)
+    result.append(my_warrior)
+    result.append(my_caster)
     return result
 Game()

@@ -9,19 +9,46 @@ class Position:
         result=math.sqrt(result)
         return result
 
+
+
 class Map:
     def __init__(self,width,height):
         self.Width=width
         self.Height=height
-        self.Martix=[[0]*width for i in range(0,height)]
+        self.Matrix=[[0]*width for i in range(0,height)]
         self.Dic={}
 
+    def search(self,position,distance):
+        result=[]
+        for cid in self.Dic:
+            if(self.Dic[cid].distance(position)<=distance):
+                result.append(cid)
+        return result
+
+    def find_way(self,pa,pb,mv):
+        x_start=0 if pa.X-mv<0 else pa.X-mv
+        x_end=self.Width if pa.X+mv>self.Width else pa.X+mv
+        y_start=0 if pa.Y-mv<0 else pa.Y-mv
+        y_end=self.Height if pa.Y+mv>self.Height else pa.Y+mv
+        min_distance=1000
+
+        for x in range(x_start,x_end+1):
+            for y in range(y_start,y_end+1):
+                temp_p=Position(x,y)
+                temp_distance=temp_p.distance(pb)
+                if temp_p.distance(pa)>mv:
+                    continue
+                if temp_distance<min_distance and temp_distance>0:
+                    min_distance=temp_distance
+                    result=temp_p
+        return result,min_distance
+
     def __getitem__(self, item):   # item 是一个Position对象
-        return self.Martix[item.Y][item.X]
+        return self.Matrix[item.Y][item.X]
 
     def __setitem__(self, key, value):
 
-        self.Martix[key.Y][key.X]=value
+        self.Matrix[key.Y][key.X]=value
 
     def remove(self,character):
         self.Dic.pop(character.ID)
@@ -32,7 +59,7 @@ class Map:
 
     def update_all(self,characters):
         for i in characters:
-            self.Martix[i.Position.Y][i.Position.X]=i.ID
+            self.Matrix[i.Position.Y][i.Position.X]=i.ID
             self.Dic[i.ID]=i.Position
 
     def move(self,character):
@@ -41,7 +68,7 @@ class Map:
         self.Dic[character.ID]=character.Position
 
     def display(self):
-        for line in self.Martix:
+        for line in self.Matrix:
             print(line)
 
     def can_move(self,x=None,y=None,position=None):

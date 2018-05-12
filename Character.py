@@ -5,10 +5,12 @@ import  unittest
 
 class Character:
     Character_Num=0
-    def __init__(self,name,hp,mp,skill_list,position,action_list,party_id,move,symbol):
+    def __init__(self,name,hp,mp,skill_list,position,action_list,party_id,move,symbol,map=None):
         self.Name=name
         self.HP=hp
         self.MP=mp
+        self.MAX_HP=hp
+        self.MAX_MP=mp
         self.Skill_List=skill_list
         if(position.__class__==Position):
             self.Position=position
@@ -22,6 +24,7 @@ class Character:
         Character.Character_Num = Character.Character_Num + 1
         self.ID=Character.Character_Num
         self.Actions=Actions()
+        self.Map=map
 
     def move(self,x,y):
         self.Actions.append(Move(x,y))
@@ -34,6 +37,12 @@ class Character:
 
     def rest(self):
         self.Actions.append(Rest())
+
+    def find_way(self,pb):
+        if pb.__class__==Character:
+            return self.Map.find_way(self.Position, pb.Position, self.MV)
+        else:
+            return self.Map.find_way(self.Position,pb,self.MV)
 
     def update_HP(self,h):
         # 更新HP
