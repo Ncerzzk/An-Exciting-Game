@@ -35,10 +35,11 @@ class Piece():
     def __init__(self,x,y):
         self.actor=None
         self.terrain=None #地形
-        self.x=x
-        self.y=y
+        self.ox=x
+        self.oy=y
         self.position=Position(x,y)
         self.canmove=True
+        self.mv=0
 class Actor():
     def __init__(self,name,surface,map):
         self.name=name
@@ -141,58 +142,7 @@ class Actor():
     def walk_up(self,distance):
         self.walk(Direction.UP,distance)
 
-class System():
-    def __init__(self):
-        pygame.init()
-        self.screen = pygame.display.set_mode((640, 480), 0, 32)
-        # 创建了一个窗口
-        pygame.display.set_caption("Hello, World!")
 
-        self.font = pygame.font.SysFont("fangsong", 60)
-        self.menu = Menu(["移动", "攻击", "休息"],self.screen)
-        self.map= Map(int(640 / 32), int(480 / 32), self.screen)
-
-        self.cursor=Cursor(self.screen)
-
-        self.party1=[]
-        self.party2=[]
-        self.actor_init()
-        self.clock=pygame.time.Clock()
-
-    def actor_init(self):
-        self.nurse=Actor("nurse",self.screen,self.map)
-        self.map.add_actor(self.nurse,5,5)
-
-
-    def game_run(self):
-        while True:
-            # 游戏主循环
-            self.map.background_update()
-
-            x, y = pygame.mouse.get_pos()
-            self.cursor.update(x,y)
-            for event in pygame.event.get():
-                if event.type == QUIT:
-                    # 接收到退出事件后退出程序
-                    exit()
-                elif event.type == MOUSEBUTTONDOWN:
-                    if not self.menu.show:
-                        self.cursor.choose(True)
-                    ox,oy=self.cursor.get_ox_oy()
-                    if self.map.get_actor(ox,oy):
-                        self.menu.click(x, y,True)
-                    else:
-                        self.menu.click(x, y,False)
-                    #self.map.actors[0].walk_up(1)
-
-                    #print(self.map.map_data[self.cursor.oy][self.cursor.ox].actor)
-            self.clock.tick(40)
-            self.menu.update(x,y)
-
-            self.map.sprite_update()
-
-            pygame.display.update()
-            # 刷新一下画面
 class Party():
     def __init__(self):
         self.data=[]
@@ -216,6 +166,7 @@ class Map():
 
         self.screen=screen
         self.actors=[]
+        self.test=[]
 
     def background_update(self):
         pygame.draw.rect(self.screen, (100, 200, 0), ((0, 0), (640, 480)))
@@ -244,10 +195,48 @@ class Map():
     def can_move(self,ox,oy):
         return self.map_data[oy][ox].canmove
 
+    def get_move_list(self,ox,oy,move):
+        start_point=self.map_data[oy][ox]
+        start_point.mv=move
+        wait_to_extend=[]
+        extended=[]
+
+        path=[]
+        wait_to_extend.append(start_point)
+
+        off_x={Direction.DOWN:0,Direction.LEFT:-1,Direction.RIGHT:1,Direction.UP:0}
+        off_y={Direction.DOWN:1,Direction.LEFT:0,Direction.RIGHT:0,Direction.UP:-1}
+        while len(wait_to_extend)>0:
+            extending_point=wait_to_extend.pop(0) # 不能从末尾弹出，因为必须保证搜寻是从一条路径上找的
+            print("从待拓展区取出一个点，坐标为 %d %d" %(extending_point.ox,extending_point.oy))
+            extended.append(extending_point)
+            for direction in Direction:
+                # 往四个方向开始拓展
+
+                temp_ox=extending_point.ox+off_x[direction]
+                temp_oy=extending_point.oy+off_y[direction]
+                temp=self.map_data[temp_oy][temp_ox]
+                temp.mv=extending_point.mv-1
+                print("现在开始拓展"+str(direction)+" %d %d 行动力还剩：%d" %(temp.ox,temp.oy,temp.mv))
+                ## 检测该点是否正常
+                if  temp.mv<0:
+                    print("行动力不足，跳出")
+                    continue
+
+                if temp not in extended:
+                    wait_to_extend.append(temp)
+                else:
+                    print("该点已拓展过，跳出")
+                    continue
+        self.test=extended
+        for i in self.test:
+            print(i.ox,i.oy)
 
     def sprite_update(self):
         for actor in self.actors:
             actor.update()
+        for i in self.test:
+            pygame.draw.rect(self.screen,(0,255,255),(i.ox*32,i.oy*32,32,32))
         '''
         for i in self.map_data:
             for j in i:
@@ -353,7 +342,59 @@ class Menu():
         self.menu_choose=int((mouse_y-self.y)/25)
         pygame.draw.rect(self.back_surface, (200, 100, 100), (0, self.menu_choose * 25, 78, 25), 2)
 
+class System():
+    def __init__(self):
+        pygame.init()
+        self.screen = pygame.display.set_mode((640, 480), 0, 32)
+        # 创建了一个窗口
+        pygame.display.set_caption("Hello, World!")
 
+        self.font = pygame.font.SysFont("fangsong", 60)
+        self.menu = Menu(["移动", "攻击", "休息"],self.screen)
+        self.map= Map(int(640 / 32), int(480 / 32), self.screen)
+
+        self.cursor=Cursor(self.screen)
+
+        self.party1=[]
+        self.party2=[]
+        self.actor_init()
+        self.clock=pygame.time.Clock()
+
+    def actor_init(self):
+        self.nurse=Actor("nurse",self.screen,self.map)
+        self.map.add_actor(self.nurse,5,5)
+
+
+    def game_run(self):
+        while True:
+            # 游戏主循环
+            self.map.background_update()
+
+            x, y = pygame.mouse.get_pos()
+            self.cursor.update(x,y)
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    # 接收到退出事件后退出程序
+                    exit()
+                elif event.type == MOUSEBUTTONDOWN:
+                    if not self.menu.show:
+                        self.cursor.choose(True)
+                    ox,oy=self.cursor.get_ox_oy()
+                    if self.map.get_actor(ox,oy):
+                        self.menu.click(x, y,True)
+                        self.map.get_move_list(ox,oy,3)
+                    else:
+                        self.menu.click(x, y,False)
+                    #self.map.actors[0].walk_up(1)
+
+                    #print(self.map.map_data[self.cursor.oy][self.cursor.ox].actor)
+            self.clock.tick(40)
+            self.menu.update(x,y)
+
+            self.map.sprite_update()
+
+            pygame.display.update()
+            # 刷新一下画面
 
 S=System()
 S.game_run()
