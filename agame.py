@@ -39,9 +39,12 @@ class Piece():
         self.oy=y
         self.position=Position(x,y)
         self.canmove=True
-        self.mv=0
+        self.mv=0 # 该点的行动力，寻路函数用，值取决于上一个点的行动力，因此每次寻路都不同
+        self.search_direction=None # 该点的寻路方向
+
+
 class Actor():
-    def __init__(self,name,surface,map):
+    def __init__(self,name,surface,map,party):
         self.name=name
         self.image=pygame.image.load(name+".png").convert_alpha()
 
@@ -64,6 +67,7 @@ class Actor():
         self.state=Actor_State.WAIT
         self.map=map
         self.move_speed=60 # 单位 像素/s
+        self.party=party
         # 帧率 40
     def update(self):
 
@@ -141,8 +145,6 @@ class Actor():
         self.walk(Direction.RIGHT,distance)
     def walk_up(self,distance):
         self.walk(Direction.UP,distance)
-
-
 class Party():
     def __init__(self):
         self.data=[]
@@ -163,7 +165,8 @@ class Map():
             for x in range(0,width):
                 line.append(Piece(x,y))
             self.map_data.append(line)
-
+        self.height=height
+        self.width=width
         self.screen=screen
         self.actors=[]
         self.test=[]
@@ -177,20 +180,45 @@ class Map():
             pygame.draw.line(self.screen, (0, 0, 0), (i, 0), (i, height))
         for i in range(0,height,32):
             pygame.draw.line(self.screen,(0,0,0),(0,i),(width,i))
+        for i in self.test:
+            pygame.draw.rect(self.screen,(0,255,255),(i.ox*32+2,i.oy*32+2,28,28),2)
+
+    def get_near_piece(self,ox,oy):
+        result=[]
+        if oy<self.height-1:
+            result.append(self.map_data[oy+1][ox])
+        if ox>0:
+            result.append(self.map_data[oy][ox-1])
+        if ox<self.width-1:
+            result.append(self.map_data[oy][ox+1])
+        if oy>0:
+            result.append(self.map_data[oy-1][ox])
+        return result
+
+    def set_actor(self,actor,ox,oy):
+        point=self.map_data[oy][ox]
+        point.actor=actor
+        point.canmove=False
+
 
     def add_actor(self,actor,ox,oy):
         self.actors.append(actor)
-        self.map_data[oy][ox].actor=actor
-        self.map_data[oy][ox].canmove=False
-        actor.set_position(ox,oy)
+        self.set_actor(actor,ox,oy)
+        actor.set_position(ox, oy)
 
-    def move_actor(self,dest_ox,dest_oy,ox,oy):
-        self.map_data[dest_oy][dest_ox].actor=self.map_data[oy][ox].actor
-        self.map_data[oy][ox].actor = None
+    def cancel_actor(self,ox,oy):
+        self.map_data[oy][ox].actor=None
         self.map_data[oy][ox].canmove=True
 
+    def move_actor(self,dest_ox,dest_oy,ox,oy):
+        self.set_actor(self.get_actor(ox,oy),dest_ox,dest_oy)
+        self.cancel_actor(ox,oy)
+
     def get_actor(self,ox,oy):
-        return self.map_data[oy][ox].actor
+        a=self.map_data[oy][ox].actor
+        if not a:
+            raise "no actor in %d %d" % (ox,oy)
+        return a
 
     def can_move(self,ox,oy):
         return self.map_data[oy][ox].canmove
@@ -204,30 +232,42 @@ class Map():
         path=[]
         wait_to_extend.append(start_point)
 
+        now_actor=start_point.actor
+        if not now_actor:
+            print("当前寻路点并不存在英雄！")
+            return None
+
         off_x={Direction.DOWN:0,Direction.LEFT:-1,Direction.RIGHT:1,Direction.UP:0}
         off_y={Direction.DOWN:1,Direction.LEFT:0,Direction.RIGHT:0,Direction.UP:-1}
         while len(wait_to_extend)>0:
-            extending_point=wait_to_extend.pop(0) # 不能从末尾弹出，因为必须保证搜寻是从一条路径上找的
-            print("从待拓展区取出一个点，坐标为 %d %d" %(extending_point.ox,extending_point.oy))
+            extending_point=wait_to_extend.pop(0) # 不能从末尾弹出，必须保证行动力是递减的
+                                                    # 即必须保证行动力3的全拓展完了，再去拓展行动力2的点
+            #print("从待拓展区取出一个点，坐标为 %d %d" %(extending_point.ox,extending_point.oy))
             extended.append(extending_point)
             for direction in Direction:
                 # 往四个方向开始拓展
-
                 temp_ox=extending_point.ox+off_x[direction]
                 temp_oy=extending_point.oy+off_y[direction]
                 temp=self.map_data[temp_oy][temp_ox]
                 temp.mv=extending_point.mv-1
-                print("现在开始拓展"+str(direction)+" %d %d 行动力还剩：%d" %(temp.ox,temp.oy,temp.mv))
+                temp.search_direction=direction #记录当前点的寻路方向
+                #print("现在开始拓展"+str(direction)+" %d %d 行动力还剩：%d" %(temp.ox,temp.oy,temp.mv))
                 ## 检测该点是否正常
-                if  temp.mv<0:
-                    print("行动力不足，跳出")
-                    continue
 
-                if temp not in extended:
-                    wait_to_extend.append(temp)
-                else:
-                    print("该点已拓展过，跳出")
+                if temp in extended:
+                    continue # 已经拓展过，跳出
+                if  temp.mv<0:
+                    #print("行动力不足，跳出")
                     continue
+                if temp.actor: #该点存在英雄
+                    if temp.actor.party != now_actor.party:
+                        print("找到敌方英雄！")
+
+                if not temp.canmove:
+                    continue
+                    print("改点无法移动")
+                wait_to_extend.append(temp)
+
         self.test=extended
         for i in self.test:
             print(i.ox,i.oy)
@@ -235,22 +275,11 @@ class Map():
     def sprite_update(self):
         for actor in self.actors:
             actor.update()
-        for i in self.test:
-            pygame.draw.rect(self.screen,(0,255,255),(i.ox*32,i.oy*32,32,32))
-        '''
-        for i in self.map_data:
-            for j in i:
-                if j.actor is not None:
-                    self.draw_actor(j.x,j.y,j.actor)
-                    '''
 
-
-    def draw_actor(self,x,y,actor):
-        self.screen.blit(actor.subimage[0][0], (x*32, y*32-16))
 class Cursor():
     def __init__(self,surface):
         self.cursor=pygame.Surface((32,32),flags=SRCALPHA, depth=32).convert_alpha()
-        pygame.draw.rect(self.cursor, (255, 255, 255), Rect(0, 0, 30, 30), 2)
+        pygame.draw.rect(self.cursor, (255, 255, 255), Rect(1, 1, 30, 30), 2)
         self.surface=surface
         self.mouse_x=0
         self.mouse_y=0
@@ -261,7 +290,7 @@ class Cursor():
 
         self.ox=0
         self.oy=0
-        pygame.draw.rect(self.choose_cursor, (255, 0, 0), Rect(0, 0, 30, 30), 2)
+        pygame.draw.rect(self.choose_cursor, (255, 0, 0), Rect(1, 1, 30, 30), 2)
 
     def mouse_adjust(self,mouse_x,mouse_y):
         self.ox=int(mouse_x/32)
@@ -328,10 +357,6 @@ class Menu():
             else:
                 print(self.menu_choose)
 
-
-
-
-
     def update(self,mouse_x,mouse_y):
         if not self.show:
             return
@@ -355,14 +380,19 @@ class System():
 
         self.cursor=Cursor(self.screen)
 
-        self.party1=[]
-        self.party2=[]
+        self.party1=Party()
+        self.party2=Party()
         self.actor_init()
         self.clock=pygame.time.Clock()
 
     def actor_init(self):
-        self.nurse=Actor("nurse",self.screen,self.map)
+        self.nurse=Actor("nurse", self.screen, self.map, self.party1)
+        self.warrior=Actor("warrior",self.screen,self.map,self.party2)
+        self.caster=Actor("caster",self.screen,self.map,self.party1)
+
         self.map.add_actor(self.nurse,5,5)
+        self.map.add_actor(self.caster, 7,5 )
+        self.map.add_actor(self.warrior,5,6)
 
 
     def game_run(self):
@@ -377,6 +407,7 @@ class System():
                     # 接收到退出事件后退出程序
                     exit()
                 elif event.type == MOUSEBUTTONDOWN:
+                    #self.map.actors[0].walk_up(1)
                     if not self.menu.show:
                         self.cursor.choose(True)
                     ox,oy=self.cursor.get_ox_oy()
@@ -385,7 +416,7 @@ class System():
                         self.map.get_move_list(ox,oy,3)
                     else:
                         self.menu.click(x, y,False)
-                    #self.map.actors[0].walk_up(1)
+
 
                     #print(self.map.map_data[self.cursor.oy][self.cursor.ox].actor)
             self.clock.tick(40)
