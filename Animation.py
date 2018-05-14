@@ -28,8 +28,8 @@ class Animation():
 
     def show(self,x,y):
         self.display=True
-        self.x=x
-        self.y=y
+        self.x=x-192/2
+        self.y=y-192/2
 
     def update(self):
         if not self.display:
