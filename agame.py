@@ -4,7 +4,7 @@ from sys import exit
 
 from enum import Enum
 
-
+from Animation import *
 
 class Direction(Enum):
     DOWN=0
@@ -291,7 +291,6 @@ class Cursor():
         self.ox=0
         self.oy=0
         pygame.draw.rect(self.choose_cursor, (255, 0, 0), Rect(1, 1, 30, 30), 2)
-
     def mouse_adjust(self,mouse_x,mouse_y):
         self.ox=int(mouse_x/32)
         self.oy=int(mouse_y/32)
@@ -385,6 +384,8 @@ class System():
         self.actor_init()
         self.clock=pygame.time.Clock()
 
+        self.animation=Animation("weapon",self.screen,[0,1,2,3,4])
+
     def actor_init(self):
         self.nurse=Actor("nurse", self.screen, self.map, self.party1)
         self.warrior=Actor("warrior",self.screen,self.map,self.party2)
@@ -411,6 +412,7 @@ class System():
                     if not self.menu.show:
                         self.cursor.choose(True)
                     ox,oy=self.cursor.get_ox_oy()
+                    self.animation.show(x,y)
                     if self.map.get_actor(ox,oy):
                         self.menu.click(x, y,True)
                         self.map.get_move_list(ox,oy,3)
@@ -421,6 +423,7 @@ class System():
                     #print(self.map.map_data[self.cursor.oy][self.cursor.ox].actor)
             self.clock.tick(40)
             self.menu.update(x,y)
+            self.animation.update()
 
             self.map.sprite_update()
 
