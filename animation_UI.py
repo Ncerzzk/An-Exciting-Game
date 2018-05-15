@@ -63,21 +63,34 @@ class String_Mouse_Item(Mouse_Item):
         self.surface.fill(self.back_normal_color)
 
 class Bottom_Menu():
-    def __init__(self,name):
+    def __init__(self,name,parent_surface,mouse):
         self.display_image_num=5
         self.image=pygame.image.load(name+".png").convert_alpha()
         row_count=int(self.image.get_height()/192)
         column_count=int(self.image.get_width()/192)
+        self.parent_surface=parent_surface
+        self.surface=pygame.Surface((640,128)).convert_alpha()
         self.subimage=[]
+        self.scale_subimage=[]
         for j in range(0,row_count):
             for i in range(0,column_count):
                 self.subimage.append(self.image.subsurface(Rect(i*192,j*192,192,192)))
+                self.scale_subimage.append(pygame.transform.smoothscale(self.image.subsurface(Rect(i*192,j*192,192,192)),(128,128)))
         if len(self.subimage)>5:
-            self.scroll=True
+            self.scroll=Scroll((640,20),len(self.subimage),parent_surface,mouse,(0,parent_surface.get_height()-128))
         else:
-            self.scroll=False
+            self.scroll=None
+        self.start_display_index=0
+
+    def update(self):
+        self.scroll.update()
+        for i,item in enumerate(range(self.start_display_index,self.start_display_index+5)):
+            self.surface.blit(self.scale_subimage[item],(i*128,0))
+        self.parent_surface.blit(self.surface,(0,100))
+
+
 class Scroll():
-    def __init__(self,h_w,length,parent_surface,mouse_inform):
+    def __init__(self,h_w,length,parent_surface,mouse_inform,display_position=None):
         self.length=length
         self.parent_surface=parent_surface
         self.width=h_w[0]
@@ -91,8 +104,12 @@ class Scroll():
         self.mouse_inform=mouse_inform
         self.clicked=False # 被点击
 
-        self.display_x=0
-        self.display_y=0
+        if not display_position:
+            self.display_x=0
+            self.display_y=0
+        else:
+            self.display_x=display_position[0]
+            self.display_y=display_position[1]
 
         self.type=0
         self.now_result=0
@@ -118,7 +135,7 @@ class Scroll():
                 self.now_result = int(percent * self.length)
             else:
                 # 如果是刚按下鼠标，那么检测鼠标是否点到了滚动条上，如果是，将clicked 改变值
-                rect=Rect(self.scroll_x,self.scroll_y,self.scroll.get_width(),self.scroll.get_height())
+                rect=Rect(self.display_x+self.scroll_x,self.display_x+self.scroll_y,self.scroll.get_width(),self.scroll.get_height())
                 if rect.collidepoint(self.mouse_inform.x,self.mouse_inform.y):
                     self.clicked=True
                 self.surface.blit(self.scroll, (self.now_result / self.length * self.width, 0))
@@ -176,7 +193,7 @@ class Animation_UI():
         self.menu=String_Mouse_Item("测试",self.screen,(0,0))
         self.mouse=Mouse_Inform()
         self.scroll=Scroll((640,30),10,self.screen,self.mouse)
-
+        self.bottom_menu=Bottom_Menu("fire",self.screen,self.mouse)
     def run(self):
         while True:
             x, y = pygame.mouse.get_pos()
@@ -191,6 +208,7 @@ class Animation_UI():
             self.mouse.set_mouse(x,y)
             self.scroll.update()
             self.menu.update(x,y)
+            self.bottom_menu.update()
             pygame.display.update()
 
 
